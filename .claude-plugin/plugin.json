@@ -1,0 +1,50 @@
+{
+  "name": "context-viewer",
+  "version": "0.1.0",
+  "description": "Shows the session's context window fill above the prompt",
+  "author": { "name": "joaomariomag" },
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "legend": {
+      "type": "string",
+      "title": "Legend",
+      "description": "full: name, tokens and percent per category; tokens: name and tokens; compact: name only; off: no legend, single-colour bar",
+      "options": ["full", "tokens", "compact", "off"],
+      "default": "full"
+    },
+    "numbers": {
+      "type": "string",
+      "title": "Numbers",
+      "description": "round: 4.2k, 76k, 1M and whole percents; precise: one decimal everywhere (348.1k, 1.0M, 4.7%)",
+      "options": ["round", "precise"],
+      "default": "round"
+    },
+    "usage": {
+      "type": "string",
+      "title": "Usage",
+      "description": "Plan limit windows (5h, 7d, spend limit) and the session's spend after the context figures",
+      "options": ["both", "limits", "cost", "off"],
+      "default": "both"
+    },
+    "hide_below_percent": {
+      "type": "number",
+      "title": "Hide below percent",
+      "description": "Keep the band hidden until the context window is at least this full (0 always shows it)",
+      "min": 0,
+      "max": 100,
+      "default": 0
+    },
+    "separator": {
+      "type": "string",
+      "title": "Legend separator",
+      "description": "Text between header parts and legend entries; leave empty for none",
+      "default": "•"
+    },
+    "show_buffer": {
+      "type": "boolean",
+      "title": "Show autocompact buffer",
+      "description": "Show the autocompact buffer as its own category in the bar and legend",
+      "default": true
+    }
+  }
+}

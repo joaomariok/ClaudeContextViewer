@@ -1,0 +1,6 @@
+{
+  "name": "context-viewer",
+  "description": "Context window fill above the Claude Code prompt",
+  "owner": { "name": "joaomariomag" },
+  "plugins": [{ "name": "context-viewer", "source": "./" }]
+}
