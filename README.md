@@ -36,9 +36,28 @@ Answer `y` to add the marketplace, then pick a scope.
 To run it from a local checkout instead, add the folder to `CLAUDE_CODE_PLUGIN_DIRS` in the `env`
 block of `~/.claude/settings.json` (or pass `claude --plugin-dir <folder>` in a terminal).
 
+## VS Code status bar
+
+The Claude Code VS Code extension doesn't draw mod UI, so the band can't appear there. The mod still runs in
+VS Code sessions and writes its figures to `~/.claude/context-viewer/<session>.json`. A small companion
+extension in `extension/` shows the context in the status bar (the Claude mark, then `• ▰▱▱▱▱▱▱▱▱▱ • 87k/1M (9%)`).
+Its tooltip is
+laid out like Claude Code's Context usage dialog (the bar, then category, tokens and usage) and follows the
+mod's settings. It shows the newest session running in one of the open folders. VS Code's settings
+`contextViewer.statusBar.showBar` and `contextViewer.statusBar.barCells` (1–30, default 10) control the
+status-bar bar. To change the mark, see [extension/docs/regenerate-icon.md](extension/docs/regenerate-icon.md).
+
+```
+cd extension
+npm install
+npm run package
+code --install-extension context-viewer-status-0.1.0.vsix
+```
+
 ## Develop
 
 ```
 claude plugin validate .
 claude plugin test .
+cd extension && npm test
 ```

@@ -1,88 +1,17 @@
 import { atom, read, update } from 'claude-code'
 import type { Register } from 'claude-code'
 
-import type { Row, View } from '../types'
+import { barSvg, CLAUDE, fmt, label, pct, shownRows, usageParts } from './format'
+import type { Settings, Snapshot, View } from './format'
 
 const view = atom({ plugin: 'context-viewer', key: 'view' } as const, null)
 
 // The engine's /context colours repeat a grey across categories; these stay apart on dark and light themes.
 const PALETTE = ['#e5735a', '#4fa3e0', '#9b7fe6', '#5cc48a', '#e8c547', '#e078b8', '#4cc9c0', '#c9a07a']
 const GREY = '#808080'
-const CLAUDE = '#D97757'
-
-const trim = (n: number) => n.toFixed(1).replace(/\.0$/, '')
-
-// round: 4.2k, 76k, 1M. precise, as the Context usage dialog: 3.4k, 348.1k, 1.0M.
-export const fmt = (n: number, precise = false) =>
-  precise
-    ? n < 1000 ? `${n}` : n < 999_950 ? `${(n / 1000).toFixed(1)}k` : `${(n / 1e6).toFixed(1)}M`
-    : n < 1000 ? `${n}` : n < 10_000 ? `${trim(n / 1000)}k` : n < 999_500 ? `${Math.round(n / 1000)}k` : `${trim(n / 1e6)}M`
-
-export const pct = (n: number, of: number, precise = false) => {
-  const p = (n / of) * 100
-
-  return !precise ? `${Math.round(p)}%` : p > 0 && p < 0.1 ? '<0.1%' : `${p.toFixed(1)}%`
-}
-
-const WINDOW: Record<string, string> = { five_hour: '5h', seven_day: '7d', spend_limit: 'spend' }
-
-// Time left until a window resets: 45m, 2h10m, 3d4h.
-export const until = (resetsAt: string, now: number) => {
-  const m = Math.max(0, Math.round((Date.parse(resetsAt) - now) / 60_000))
-
-  return m < 60 ? `${m}m` : m < 1440 ? `${Math.floor(m / 60)}h${m % 60}m` : `${Math.floor(m / 1440)}d${Math.floor((m % 1440) / 60)}h`
-}
-
-// The header's usage parts as [label, figure, tail], the figure drawn bold. Only the windows the engine reports:
-// 5h/7d on a subscription, a spend limit through a gateway, none on an API key.
-export const usageParts = (v: View, usage: string, precise: boolean, now: number): [string, string, string][] => [
-  // `?? []`: a view stored by an older version of this mod, which had no limits, outlives a reload.
-  ...(usage === 'both' || usage === 'limits'
-    ? (v.limits ?? []).map((l): [string, string, string] => [
-        `${WINDOW[l.kind] ?? l.kind} `,
-        precise ? `${l.percentUsed.toFixed(1)}%` : `${Math.round(l.percentUsed)}%`,
-        l.resetsAt === undefined ? '' : ` (${until(l.resetsAt, now)})`,
-      ])
-    : []),
-  ...((usage === 'both' || usage === 'cost') && v.usd !== undefined
-    ? [['spent ', `$${v.usd.toFixed(2)}`, ''] as [string, string, string]]
-    : []),
-]
-
-// The bar as an SVG: a rounded translucent track (free space) with one segment per category, each at least a sliver.
-export const barSvg = (rows: Row[], window: number) => {
-  // Neighbours with the same fill merge into one run: anti-aliased edges between them show the track as seams.
-  const runs: { x: number; w: number; color: string; translucent: boolean }[] = []
-  let x = 0
-  for (const row of rows) {
-    if (row.kind === 'free' || row.tokens === 0) continue
-    const w = Math.max(4, (row.tokens / window) * 1000)
-    const translucent = row.kind === 'buffer'
-    const last = runs[runs.length - 1]
-    if (last && last.color === row.color && last.translucent === translucent) last.w += w
-    else runs.push({ x, w, color: row.color, translucent })
-    x += w
-  }
-  // An opaque run reaches one unit under the next opaque one, which covers the seam between different colours.
-  const segments = runs.map((run, i) => {
-    const overlap = !run.translucent && runs[i + 1]?.translucent === false ? 1 : 0
-
-    return `<rect x="${run.x.toFixed(1)}" width="${(run.w + overlap).toFixed(1)}" height="8" fill="${run.color}"${run.translucent ? ' fill-opacity="0.5"' : ''}/>`
-  })
-
-  return (
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 8" width="100%" height="8" preserveAspectRatio="none">' +
-    '<clipPath id="track"><rect width="1000" height="8" rx="4"/></clipPath>' +
-    '<g clip-path="url(#track)"><rect width="1000" height="8" fill="#808080" fill-opacity="0.2"/>' +
-    segments.join('') +
-    '</g></svg>'
-  )
-}
-
-const label = (row: Row) => (row.kind === 'free' ? 'free' : row.name.toLowerCase())
 
 export const register: Register = (on, options) => {
-  const legend =
+  const legend: Settings['legend'] =
     options.legend === 'tokens' || options.legend === 'compact' || options.legend === 'off' ? options.legend : 'full'
   const hideBelow = typeof options.hide_below_percent === 'number' ? options.hide_below_percent : 0
   const separator = typeof options.separator === 'string' ? options.separator : '•'
@@ -113,6 +42,22 @@ export const register: Register = (on, options) => {
         usd: e.cost?.usd,
       }
       await update($, view, () => fresh)
+
+      // For the VS Code status bar (extension/): VS Code draws no mod UI, but these hooks still run there.
+      // ponytail: one file per session and none are deleted ($.fs has no delete); the extension skips stale ones.
+      const home = (await $.env.get('USERPROFILE')) ?? (await $.env.get('HOME'))
+      if (home !== undefined) {
+        const sessionId = await $.session.id()
+        const snapshot: Snapshot = {
+          version: 1,
+          sessionId,
+          cwd: await $.session.cwd(),
+          updatedAt: await $.clock.now(),
+          view: fresh,
+          settings: { legend, numbers: precise ? 'precise' : 'round', usage, separator, showBuffer },
+        }
+        await $.fs.write(`${home}/.claude/context-viewer/${sessionId}.json`, JSON.stringify(snapshot))
+      }
     }
 
     return next(e)
@@ -125,10 +70,8 @@ export const register: Register = (on, options) => {
     }
     const { Box, Text } = $.ui.resolve(e)
 
-    // Filtered here rather than when measured, so a /config change applies without waiting for the next turn.
-    const shown = showBuffer ? v.rows : v.rows.filter(row => row.kind !== 'buffer')
-    // With no legend to tell the colours apart, the bar is one colour.
-    const rows = legend === 'off' ? shown.map(row => (row.kind === 'free' ? row : { ...row, color: CLAUDE })) : shown
+    // Applied here rather than when measured, so a /config change shows without waiting for the next turn.
+    const rows = shownRows(v.rows, legend, showBuffer)
     const width = Math.max(10, e.props.bodyColumns)
     // At least one cell for any non-empty category, so small ones (a 2.5k system prompt in a 1M window) still show.
     const cells = rows.map(row =>

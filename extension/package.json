@@ -1,0 +1,48 @@
+{
+  "name": "context-viewer-status",
+  "displayName": "Claude Context Viewer",
+  "description": "Shows the Claude Code session's context window and plan usage in the status bar",
+  "version": "0.1.0",
+  "publisher": "joaomariok",
+  "repository": "https://github.com/joaomariok/ClaudeContextViewer",
+  "engines": { "vscode": "^1.90.0" },
+  "categories": ["Other"],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./out/extension/src/extension.js",
+  "contributes": {
+    "icons": {
+      "context-viewer-claude": {
+        "description": "Claude brand mark",
+        "default": { "fontPath": "./assets/icons/claude.woff", "fontCharacter": "\\E001" }
+      }
+    },
+    "configuration": {
+      "title": "Claude Context Viewer",
+      "properties": {
+        "contextViewer.statusBar.showBar": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show a ▰▱ bar of the context fill in the status bar item."
+        },
+        "contextViewer.statusBar.barCells": {
+          "type": "integer",
+          "default": 10,
+          "minimum": 1,
+          "maximum": 30,
+          "description": "Number of cells in the status bar's context bar."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "tsc -p .",
+    "vscode:prepublish": "tsc -p .",
+    "test": "tsc -p . && node --test \"out/extension/src/*.spec.js\"",
+    "package": "npx -y @vscode/vsce@3.9.2 package --skip-license"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "@types/vscode": "1.90.0",
+    "typescript": "5.6.3"
+  }
+}

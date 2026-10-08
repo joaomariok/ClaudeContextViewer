@@ -1,7 +1,7 @@
 import { expect, mock, test } from 'claude-code/testing'
 import type { On, SessionMeasureInput } from 'claude-code'
 import type { Engine } from 'claude-code/testing'
-import { usageParts } from './register'
+import { usageParts } from './format'
 
 const NOW = Date.parse('2026-10-08T12:00:00Z')
 const PLAN = [
@@ -375,4 +375,27 @@ test('with one colour the desktop bar is one run plus the buffer', { options: { 
   const source = String((await ui.find({ type: 'Svg' }))?.props.source)
   expect([...source.matchAll(/<rect x="/g)]).toHaveLength(2)
   await ui.unmount()
+})
+
+test('each measurement writes a snapshot for the VS Code status bar', async ($, on) => {
+  engine(on)
+  mock.env(on, { USERPROFILE: 'C:/Users/test' })
+  on('session.id', () => ({ value: 'session-1' }))
+  on('session.cwd', () => ({ value: 'D:/GIT/project' }))
+  const writes: { path: string; text: string }[] = []
+  on('fs.write', (_, e) => {
+    writes.push({ path: e.path, text: e.text })
+
+    return { value: undefined }
+  })
+  await measure($)
+
+  expect(writes).toHaveLength(1)
+  // The engine hands the path on in the platform's separators.
+  expect(writes[0]?.path.replaceAll('\\', '/')).toBe('C:/Users/test/.claude/context-viewer/session-1.json')
+  const snapshot = JSON.parse(writes[0]!.text)
+  expect(snapshot).toMatchObject({ version: 1, sessionId: 'session-1', cwd: 'D:/GIT/project', updatedAt: NOW })
+  expect(snapshot.view.tokens).toBe(90_000)
+  expect(snapshot.view.limits).toHaveLength(2)
+  expect(snapshot.settings).toEqual({ legend: 'full', numbers: 'round', usage: 'both', separator: '•', showBuffer: true })
 })

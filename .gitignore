@@ -1,2 +1,5 @@
 .claude-plugin/types/
-tsconfig.json
+/tsconfig.json
+extension/node_modules/
+extension/out/
+*.vsix

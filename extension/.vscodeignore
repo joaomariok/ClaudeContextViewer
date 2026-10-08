@@ -1,0 +1,6 @@
+src/**
+tsconfig.json
+out/**/*.spec.js
+*.vsix
+docs/**
+CLAUDE.md
