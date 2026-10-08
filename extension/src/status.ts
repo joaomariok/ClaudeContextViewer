@@ -1,7 +1,7 @@
 import { barSvg, CLAUDE, fmt, pct, shownRows, usageParts } from '../../hooks/format'
 import type { Settings, Snapshot, View } from '../../hooks/format'
 
-const STALE_MS = 12 * 60 * 60 * 1000
+export const STALE_MS = 12 * 60 * 60 * 1000
 
 const normalize = (p: string, ignoreCase: boolean) => {
   const s = p.replaceAll('\\', '/').replace(/\/+$/, '')
@@ -9,18 +9,40 @@ const normalize = (p: string, ignoreCase: boolean) => {
   return ignoreCase ? s.toLowerCase() : s
 }
 
-// The newest snapshot of a session running in one of the open folders, written in the last 12 hours.
+// The label Claude Code gives a session's editor tab (CN1 in its extension.js): the title, cut at 25 characters.
+export const tabLabel = (title: string | undefined) =>
+  !title ? 'Claude Code' : title.length > 25 ? `${title.slice(0, 24)}…` : title
+
+// A session's title as its transcript records it: the last rename, else the last generated title.
+export const transcriptTitle = (text: string): string | undefined => {
+  const last = (pattern: RegExp) => [...text.matchAll(pattern)].pop()?.[1]
+  const value = last(/"type":"custom-title","customTitle":("(?:[^"\\]|\\.)*")/g) ?? last(/"type":"ai-title","aiTitle":("(?:[^"\\]|\\.)*")/g)
+
+  return value === undefined ? undefined : JSON.parse(value)
+}
+
+// The Claude Code tab focused last, by label and time, with the titles of the candidate sessions.
+export type Focus = { label: string; at: number; titles: Map<string, string> }
+
+// The session in use among those running in an open folder in the last 12 hours: the one last prompted
+// (or written, for snapshots from before promptedAt), unless its tab was focused more recently.
 export const pickSnapshot = (
   snapshots: Snapshot[],
   folders: string[],
   now: number,
   ignoreCase: boolean,
+  focus?: Focus,
 ): Snapshot | undefined => {
   const open = new Set(folders.map(f => normalize(f, ignoreCase)))
+  const active = (s: Snapshot) => {
+    const focused = focus !== undefined && tabLabel(focus.titles.get(s.sessionId)) === focus.label
+
+    return Math.max(s.promptedAt ?? s.updatedAt, focused ? focus.at : 0)
+  }
 
   return snapshots
     .filter(s => open.has(normalize(s.cwd, ignoreCase)) && now - s.updatedAt <= STALE_MS)
-    .sort((a, b) => b.updatedAt - a.updatedAt)[0]
+    .sort((a, b) => active(b) - active(a) || b.updatedAt - a.updatedAt)[0]
 }
 
 // A file the mod wrote, or undefined for anything else in the folder.

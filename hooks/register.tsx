@@ -1,14 +1,35 @@
 import { atom, read, update } from 'claude-code'
-import type { Register } from 'claude-code'
+import type { EngineInterface, Register } from 'claude-code'
 
 import { barSvg, CLAUDE, fmt, label, pct, shownRows, usageParts } from './format'
 import type { Settings, Snapshot, View } from './format'
 
 const view = atom({ plugin: 'context-viewer', key: 'view' } as const, null)
+const promptedAt = atom({ plugin: 'context-viewer', key: 'promptedAt' } as const, null)
 
 // The engine's /context colours repeat a grey across categories; these stay apart on dark and light themes.
 const PALETTE = ['#e5735a', '#4fa3e0', '#9b7fe6', '#5cc48a', '#e8c547', '#e078b8', '#4cc9c0', '#c9a07a']
 const GREY = '#808080'
+
+// For the VS Code status bar (extension/): VS Code draws no mod UI, but these hooks still run there.
+// ponytail: one file per session and none are deleted ($.fs has no delete); the extension skips stale ones.
+async function writeSnapshot($: EngineInterface, v: View, settings: Settings) {
+  const home = (await $.env.get('USERPROFILE')) ?? (await $.env.get('HOME'))
+  if (home === undefined) {
+    return
+  }
+  const sessionId = await $.session.id()
+  const snapshot: Snapshot = {
+    version: 1,
+    sessionId,
+    cwd: await $.session.cwd(),
+    updatedAt: await $.clock.now(),
+    promptedAt: (await read($, promptedAt)) ?? undefined,
+    view: v,
+    settings,
+  }
+  await $.fs.write(`${home}/.claude/context-viewer/${sessionId}.json`, JSON.stringify(snapshot))
+}
 
 export const register: Register = (on, options) => {
   const legend: Settings['legend'] =
@@ -19,6 +40,7 @@ export const register: Register = (on, options) => {
   const precise = options.numbers === 'precise'
   const usage = typeof options.usage === 'string' ? options.usage : 'both'
   const join = separator === '' ? ' ' : ` ${separator} `
+  const settings: Settings = { legend, numbers: precise ? 'precise' : 'round', usage, separator, showBuffer }
 
   on('session.measure', async ($, e, next) => {
     const b = (await $.session.usage({ breakdown: 'summary' })).context.breakdown
@@ -42,21 +64,20 @@ export const register: Register = (on, options) => {
         usd: e.cost?.usd,
       }
       await update($, view, () => fresh)
+      await writeSnapshot($, fresh, settings)
+    }
 
-      // For the VS Code status bar (extension/): VS Code draws no mod UI, but these hooks still run there.
-      // ponytail: one file per session and none are deleted ($.fs has no delete); the extension skips stale ones.
-      const home = (await $.env.get('USERPROFILE')) ?? (await $.env.get('HOME'))
-      if (home !== undefined) {
-        const sessionId = await $.session.id()
-        const snapshot: Snapshot = {
-          version: 1,
-          sessionId,
-          cwd: await $.session.cwd(),
-          updatedAt: await $.clock.now(),
-          view: fresh,
-          settings: { legend, numbers: precise ? 'precise' : 'round', usage, separator, showBuffer },
-        }
-        await $.fs.write(`${home}/.claude/context-viewer/${sessionId}.json`, JSON.stringify(snapshot))
+    return next(e)
+  })
+
+  // A typed prompt marks this as the session in use (a continuation's text is empty).
+  on('turn.start', async ($, e, next) => {
+    if (e.text !== '') {
+      const now = await $.clock.now()
+      await update($, promptedAt, () => now)
+      const v = await read($, view)
+      if (v !== null) {
+        await writeSnapshot($, v, settings)
       }
     }
 

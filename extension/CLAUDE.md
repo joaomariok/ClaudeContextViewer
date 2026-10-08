@@ -29,6 +29,15 @@ Also run the root gate (`../CLAUDE.md`) whenever `../hooks/format.ts` changes.
   - The extension's own settings (`contextViewer.statusBar.*`) are for things that exist only in VS Code.
 - **Status-bar text is plain text in one colour.** The item takes plain text plus `$(icon)`, so the bar is
   `▰▱` and the logo is the contributed icon font. To change the logo, see `docs/regenerate-icon.md`.
+- **Choosing the session in use.** Of the sessions in the open folders, the item shows the most recently
+  active.
+  - A session's activity time is its `promptedAt`, which the mod stamps on each typed prompt (sidebar,
+    tabs, terminal), or `updatedAt` for snapshots older than `promptedAt`.
+  - Focusing a Claude Code editor tab also counts. The tab is matched to a session by its label, which is
+    the session title from the transcript (`~/.claude/projects/*/<id>.jsonl`).
+  - `tabLabel` copies Claude Code's internal truncation (`CN1` in its `extension.js`), which can change in
+    any release.
+  - The sidebar can't be inspected from outside, so only prompts count for it.
 - **Item priority is 1.** Claude Code's own item has priority 0, so 1 keeps ours directly left of it. Don't
   change it.
 - **Hovers are sanitized.**

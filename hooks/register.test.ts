@@ -377,17 +377,25 @@ test('with one colour the desktop bar is one run plus the buffer', { options: { 
   await ui.unmount()
 })
 
-test('each measurement writes a snapshot for the VS Code status bar', async ($, on) => {
+// The engine beneath the snapshot: a home, the session's id and folder, and a record of each file written.
+const snapshotWrites = (on: On) => {
   engine(on)
   mock.env(on, { USERPROFILE: 'C:/Users/test' })
   on('session.id', () => ({ value: 'session-1' }))
   on('session.cwd', () => ({ value: 'D:/GIT/project' }))
+  on('turn.start', (_, e) => ({ turnId: e.turnId }))
   const writes: { path: string; text: string }[] = []
   on('fs.write', (_, e) => {
     writes.push({ path: e.path, text: e.text })
 
     return { value: undefined }
   })
+
+  return writes
+}
+
+test('each measurement writes a snapshot for the VS Code status bar', async ($, on) => {
+  const writes = snapshotWrites(on)
   await measure($)
 
   expect(writes).toHaveLength(1)
@@ -398,4 +406,27 @@ test('each measurement writes a snapshot for the VS Code status bar', async ($, 
   expect(snapshot.view.tokens).toBe(90_000)
   expect(snapshot.view.limits).toHaveLength(2)
   expect(snapshot.settings).toEqual({ legend: 'full', numbers: 'round', usage: 'both', separator: '•', showBuffer: true })
+})
+
+test('a typed prompt stamps promptedAt, and later measurements keep it', async ($, on) => {
+  const writes = snapshotWrites(on)
+  await measure($)
+  expect(JSON.parse(writes[0]!.text).promptedAt).toBeUndefined()
+
+  await $.turn.start({ text: 'hello', turnId: 't1' })
+  expect(writes).toHaveLength(2)
+  expect(JSON.parse(writes[1]!.text)).toMatchObject({ promptedAt: NOW, view: { tokens: 90_000 } })
+
+  await measure($)
+  expect(JSON.parse(writes[2]!.text).promptedAt).toBe(NOW)
+})
+
+test('a continuation, or a prompt before the first measurement, writes nothing', async ($, on) => {
+  const writes = snapshotWrites(on)
+  await $.turn.start({ text: 'hello', turnId: 't1' })
+  expect(writes).toHaveLength(0)
+
+  await measure($)
+  await $.turn.start({ text: '', turnId: 't2' })
+  expect(writes).toHaveLength(1)
 })

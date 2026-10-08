@@ -27,7 +27,16 @@ export const DEFAULT_SETTINGS: Settings = { legend: 'full', numbers: 'round', us
 
 // What the mod writes to ~/.claude/context-viewer/<sessionId>.json for the VS Code status bar.
 // `settings` is optional: snapshots from before it existed render with DEFAULT_SETTINGS.
-export type Snapshot = { version: 1; sessionId: string; cwd: string; updatedAt: number; view: View; settings?: Settings }
+// promptedAt: when the person last typed a prompt in the session, so the status bar can follow the one in use.
+export type Snapshot = {
+  version: 1
+  sessionId: string
+  cwd: string
+  updatedAt: number
+  promptedAt?: number
+  view: View
+  settings?: Settings
+}
 
 export const CLAUDE = '#D97757'
 

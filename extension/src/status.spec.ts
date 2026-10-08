@@ -4,7 +4,7 @@ import { test } from 'node:test'
 
 import { DEFAULT_SETTINGS } from '../../hooks/format'
 import type { Settings, Snapshot, View } from '../../hooks/format'
-import { bar, dot, parseSnapshot, pickSnapshot, statusText, tooltip } from './status'
+import { bar, dot, parseSnapshot, pickSnapshot, statusText, tabLabel, tooltip, transcriptTitle } from './status'
 
 const NOW = Date.parse('2026-10-08T12:00:00Z')
 const HOUR = 60 * 60 * 1000
@@ -52,6 +52,45 @@ test('pickSnapshot matches paths across separators and, on Windows, case', () =>
 
   assert.equal(pickSnapshot([s], ['D:\\GIT\\Engram'], NOW, true), s)
   assert.equal(pickSnapshot([s], ['D:\\GIT\\Engram'], NOW, false), undefined)
+})
+
+test('tabLabel mirrors the label Claude Code gives a session tab', () => {
+  assert.equal(tabLabel(undefined), 'Claude Code')
+  assert.equal(tabLabel(''), 'Claude Code')
+  assert.equal(tabLabel('a'.repeat(25)), 'a'.repeat(25))
+  assert.equal(tabLabel('a'.repeat(26)), `${'a'.repeat(24)}…`)
+})
+
+test('transcriptTitle takes the last rename, else the last generated title', () => {
+  const ai = (t: string) => JSON.stringify({ type: 'ai-title', aiTitle: t, sessionId: 's' })
+  const custom = (t: string) => JSON.stringify({ type: 'custom-title', customTitle: t, sessionId: 's' })
+
+  assert.equal(transcriptTitle([ai('First'), '{"type":"user"}', ai('Second "quoted"')].join('\n')), 'Second "quoted"')
+  assert.equal(transcriptTitle([custom('Mine'), ai('Later')].join('\n')), 'Mine')
+  assert.equal(transcriptTitle('{"type":"user"}'), undefined)
+})
+
+test('pickSnapshot prefers the session last prompted over the one last written', () => {
+  const prompted = { ...snapshot('D:\\GIT\\Engram', 2 * HOUR, 'prompted'), promptedAt: NOW - HOUR }
+  const written = { ...snapshot('D:\\GIT\\Engram', 0, 'written'), promptedAt: NOW - 3 * HOUR }
+  // A snapshot from before promptedAt ranks by when it was written.
+  const legacy = snapshot('D:\\GIT\\Engram', 2.5 * HOUR, 'legacy')
+
+  assert.equal(pickSnapshot([written, prompted, legacy], ['D:\\GIT\\Engram'], NOW, true)?.sessionId, 'prompted')
+  assert.equal(pickSnapshot([written, legacy], ['D:\\GIT\\Engram'], NOW, true)?.sessionId, 'legacy')
+})
+
+test('pickSnapshot follows a Claude tab focused after the last prompt, and a prompt typed after it', () => {
+  const a = { ...snapshot('D:\\GIT\\Engram', 0, 'a'), promptedAt: NOW - HOUR }
+  const b = { ...snapshot('D:\\GIT\\Engram', 0, 'b'), promptedAt: NOW - 2 * HOUR }
+  const titles = new Map([['a', 'Session A'], ['b', 'A very long session title for b']])
+  const pick = (at: number, label = 'A very long session titl…') =>
+    pickSnapshot([a, b], ['D:\\GIT\\Engram'], NOW, true, { label, at, titles })?.sessionId
+
+  assert.equal(pick(NOW - 30 * 60 * 1000), 'b')
+  assert.equal(pick(NOW - 90 * 60 * 1000), 'a')
+  // A tab no session's title matches changes nothing.
+  assert.equal(pick(NOW, 'Claude Code'), 'a')
 })
 
 test('parseSnapshot accepts the mod file and rejects anything else', () => {

@@ -26,7 +26,7 @@ The band draws in the terminal and the desktop app only. The VS Code extension (
 
 ## VS Code extension (`extension/`)
 
-- The mod writes a `Snapshot` (`hooks/format.ts`) to `~/.claude/context-viewer/<sessionId>.json` on each `session.measure`; the extension reads it. Change the shape in `format.ts` and both sides follow; bump `version` on a breaking change.
+- The mod writes a `Snapshot` (`hooks/format.ts`) to `~/.claude/context-viewer/<sessionId>.json` on each `session.measure`, and on each typed prompt (`turn.start`, stamping `promptedAt` so the extension can follow the session in use); the extension reads it. Change the shape in `format.ts` and both sides follow; bump `version` on a breaking change.
 - `hooks/format.ts` is the shared code: plain TypeScript, no `claude-code` runtime import, no JSX, so the extension's `tsc` (CommonJS, `rootDir: ".."`) compiles it too.
 - Extension tests are `*.spec.ts` (node:test), never `*.test.ts`: `claude plugin test` runs every `*.test.ts` under the repo and has no ignore option.
 - Everything else about the extension is in `extension/CLAUDE.md`.

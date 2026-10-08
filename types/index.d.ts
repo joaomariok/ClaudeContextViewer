@@ -13,6 +13,6 @@ export type View = {
 
 declare module 'claude-code' {
   interface PluginState {
-    'context-viewer': { view: View | null }
+    'context-viewer': { view: View | null; promptedAt: number | null }
   }
 }
