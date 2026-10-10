@@ -12,6 +12,8 @@ export type View = {
   rows: Row[]
   limits: { kind: string; percentUsed: number; resetsAt?: string }[]
   usd?: number
+  // When measured, in ms since the epoch; views stored before it existed lack it.
+  syncedAt?: number
 }
 
 // The mod's settings as resolved from /config, carried to the VS Code status bar so it follows them.
@@ -106,5 +108,20 @@ export const usageParts = (v: View, usage: string, precise: boolean, now: number
     ? [['spent ', `$${v.usd.toFixed(2)}`, ''] as [string, string, string]]
     : []),
 ]
+
+// Wall-clock time at a UTC offset in minutes: 09:05. The offset defaults to this process's own zone, which
+// the mod's runtime reports as UTC, so the mod passes the one it asked the OS for.
+export const hhmm = (ms: number, offset = -new Date(ms).getTimezoneOffset()) => {
+  const d = new Date(ms + offset * 60_000)
+
+  return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`
+}
+
+// A UTC offset as `date +%z` (+0100) or PowerShell's zzz (+01:00) prints it, in minutes; 0 when unreadable.
+export const parseOffset = (text: string) => {
+  const m = /([+-])(\d\d):?(\d\d)/.exec(text)
+
+  return m ? (m[1] === '-' ? -1 : 1) * (Number(m[2]) * 60 + Number(m[3])) : 0
+}
 
 export const label = (row: Row) => (row.kind === 'free' ? 'free' : row.name.toLowerCase())

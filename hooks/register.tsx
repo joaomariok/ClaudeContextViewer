@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { Register } from 'claude-code'
 
-import { barSvg, CLAUDE, fmt, label, pct, shownRows, usageParts } from './format'
+import { barSvg, CLAUDE, fmt, hhmm, label, parseOffset, pct, shownRows, usageParts } from './format'
 import type { Settings, Snapshot, View } from './format'
 
 const view = atom({ plugin: 'context-viewer', key: 'view' } as const, null)
@@ -19,11 +19,15 @@ export const register: Register = (on, options) => {
   const precise = options.numbers === 'precise'
   const usage = typeof options.usage === 'string' ? options.usage : 'both'
   const join = separator === '' ? ' ' : ` ${separator} `
+  // The local UTC offset, asked of the OS once: the mod's runtime has no time zone of its own.
+  // ponytail: read once per load, so a DST change mid-session shows after the next reload.
+  let offset: Promise<number> | undefined
 
   on('session.measure', async ($, e, next) => {
     const b = (await $.session.usage({ breakdown: 'summary' })).context.breakdown
     if (b) {
       const window = e.context.window
+      const now = await $.clock.now()
       const tokens = e.context.tokens ?? b.totalTokens
       let used = 0
       const rows = b.categories.flatMap(({ name, tokens, kind }) =>
@@ -40,6 +44,7 @@ export const register: Register = (on, options) => {
         rows,
         limits: e.rateLimits.map(({ kind, percentUsed, resetsAt }) => ({ kind, percentUsed, resetsAt })),
         usd: e.cost?.usd,
+        syncedAt: now,
       }
       await update($, view, () => fresh)
 
@@ -52,7 +57,7 @@ export const register: Register = (on, options) => {
           version: 1,
           sessionId,
           cwd: await $.session.cwd(),
-          updatedAt: await $.clock.now(),
+          updatedAt: now,
           view: fresh,
           settings: { legend, numbers: precise ? 'precise' : 'round', usage, separator, showBuffer },
         }
@@ -81,6 +86,16 @@ export const register: Register = (on, options) => {
     const free = Math.max(0, width - used)
 
     const extras = usageParts(v, usage, precise, await $.clock.now())
+    offset ??= (async () => {
+      try {
+        const windows = (await $.env.get('OS')) === 'Windows_NT'
+        const argv = windows ? ['powershell', '-NoProfile', '-Command', "(Get-Date).ToString('zzz')"] : ['date', '+%z']
+        return parseOffset((await $.process.run(argv, { timeoutMs: 5000 })).stdout)
+      } catch {
+        return 0 // no process access (outside the CLI) or no such command: UTC
+      }
+    })()
+    const synced = v.syncedAt === undefined ? undefined : hhmm(v.syncedAt, await offset)
 
     // The desktop draws in a proportional font, where a bar of cells misjudges its width and wraps; draw it as a vector.
     let bar = undefined
@@ -123,6 +138,12 @@ export const register: Register = (on, options) => {
               {tail}
             </Text>
           ))}
+          {synced !== undefined && (
+            <Text>
+              <Text dimColor>{join}</Text>
+              synced <Text bold>{synced}</Text>
+            </Text>
+          )}
         </Text>
         {bar ?? (
           <Text>

@@ -2,7 +2,7 @@
 import * as assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { DEFAULT_SETTINGS } from '../../hooks/format'
+import { DEFAULT_SETTINGS, hhmm } from '../../hooks/format'
 import type { Settings, Snapshot, View } from '../../hooks/format'
 import { bar, dot, parseSnapshot, pickSnapshot, statusText, tooltip } from './status'
 
@@ -178,4 +178,21 @@ test('tooltip follows numbers, usage, separator and show_buffer', () => {
   assert.equal(tooltip(VIEW, { ...S, separator: '|' }, NOW), tooltip(VIEW, S, NOW))
   assert.match(tooltip(withBuffer, S, NOW), /Autocompact buffer/)
   assert.doesNotMatch(tooltip(withBuffer, { ...S, showBuffer: false }, NOW), /Autocompact buffer/)
+})
+
+test('hhmm is the local wall-clock time by default, zero-padded', () => {
+  assert.equal(hhmm(new Date(2026, 9, 8, 9, 5).getTime()), '09:05')
+  assert.equal(hhmm(new Date(2026, 9, 8, 23, 59).getTime()), '23:59')
+})
+
+test('hhmm applies a given UTC offset, across midnight', () => {
+  assert.equal(hhmm(Date.parse('2026-10-08T08:19:00Z'), 60), '09:19')
+  assert.equal(hhmm(Date.parse('2026-10-08T23:30:00Z'), 60), '00:30')
+  assert.equal(hhmm(Date.parse('2026-10-08T02:00:00Z'), -330), '20:30')
+})
+
+test('tooltip header ends with the synced time when the view has one', () => {
+  const at = new Date(2026, 9, 8, 14, 32).getTime()
+  assert.ok(tooltip({ ...VIEW, syncedAt: at }, S, NOW).includes('Compacts at: **967k**  \nSynced: **14:32**\n'))
+  assert.doesNotMatch(tooltip(VIEW, S, NOW), /Synced/)
 })

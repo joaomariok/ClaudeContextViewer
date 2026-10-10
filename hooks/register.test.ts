@@ -1,7 +1,7 @@
 import { expect, mock, test } from 'claude-code/testing'
 import type { On, SessionMeasureInput } from 'claude-code'
 import type { Engine } from 'claude-code/testing'
-import { usageParts } from './format'
+import { parseOffset, usageParts } from './format'
 
 const NOW = Date.parse('2026-10-08T12:00:00Z')
 const PLAN = [
@@ -32,9 +32,25 @@ const row = (name: string, tokens: number, kind: 'used' | 'free' | 'buffer' | 'd
 const SURFACES = ['terminal', 'desktop'] as const
 
 // Stands in for the engine beneath the plugin: its own band, the usage breakdown, and one measurement.
-const engine = (on: On) => {
+// `env` is the host's environment; `canRun: false` refuses every command, as outside the CLI.
+const engine = (on: On, { env = {}, canRun = true }: { env?: Record<string, string>; canRun?: boolean } = {}) => {
   mock.clock(on, { now: NOW })
+  mock.env(on, env)
   on('session.measure', (_, e) => ({ changed: e.changed }))
+  // The OS asked for its UTC offset, as `date +%z` or PowerShell prints it; two zones so a test tells them apart.
+  on('process.run', (_, e) => {
+    if (!canRun) throw new Error('no process access')
+
+    return {
+      value: {
+        exitCode: 0,
+        stdout: e.argv[0] === 'date' ? '+0100\n' : '+02:00\r\n',
+        stderr: '',
+        isStdoutTruncated: false,
+        isStderrTruncated: false,
+      },
+    }
+  })
   on('ui.render', ($, e) => {
     const { Text } = $.ui.resolve(e)
 
@@ -85,6 +101,8 @@ const measure = ($: Engine, usage: Pick<SessionMeasureInput, 'rateLimits' | 'cos
 const whole = (s: string) => new RegExp(`^${s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`)
 
 const HEADER = '✻ claude-opus-5-5 • 90k of 1M (9%) • compacts at 987k'
+// NOW (12:00 UTC) at the +0100 offset the stand-in's `date` reports.
+const SYNCED = 'synced 13:00'
 
 test('the band shows the context breakdown', async ($, on) => {
   engine(on)
@@ -100,7 +118,7 @@ test('the band shows the context breakdown', async ($, on) => {
   for (const surface of SURFACES) {
     const ui = await $.ui.mount({ plugin: 'context-viewer', surface, ...BAND })
     expect(
-      await ui.find({ type: 'Text', text: whole(`${HEADER} • 5h 24% (2h10m) • 7d 41% (3d4h) • spent $1.23`) }),
+      await ui.find({ type: 'Text', text: whole(`${HEADER} • 5h 24% (2h10m) • 7d 41% (3d4h) • spent $1.23 • ${SYNCED}`) }),
     ).toBeDefined()
     expect(await ui.find({ type: 'Text', text: whole('✻') })).toMatchObject({ props: { color: '#D97757' } })
     expect(await ui.find({ type: 'Text', text: /mcp server instructions 731 0%/ })).toBeDefined()
@@ -195,7 +213,7 @@ test('the separator is configurable', { options: { separator: '|' } }, async ($,
     expect(
       await ui.find({
         type: 'Text',
-        text: whole('✻ claude-opus-5-5 | 90k of 1M (9%) | compacts at 987k | 5h 24% (2h10m) | 7d 41% (3d4h) | spent $1.23'),
+        text: whole(`✻ claude-opus-5-5 | 90k of 1M (9%) | compacts at 987k | 5h 24% (2h10m) | 7d 41% (3d4h) | spent $1.23 | ${SYNCED}`),
       }),
     ).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /•/ })).toBeUndefined()
@@ -224,7 +242,7 @@ test('precise numbers use one decimal, as the Context usage dialog', { options: 
     expect(
       await ui.find({
         type: 'Text',
-        text: whole('✻ claude-opus-5-5 • 90.0k of 1.0M (9%) • compacts at 987.0k • 5h 23.5% (2h10m) • 7d 41.0% (3d4h) • spent $1.23'),
+        text: whole(`✻ claude-opus-5-5 • 90.0k of 1.0M (9%) • compacts at 987.0k • 5h 23.5% (2h10m) • 7d 41.0% (3d4h) • spent $1.23 • ${SYNCED}`),
       }),
     ).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /system prompt 4\.2k 0\.4%/ })).toBeDefined()
@@ -240,7 +258,7 @@ test('a spend-limit plan shows only its spend window', async ($, on) => {
 
   for (const surface of SURFACES) {
     const ui = await $.ui.mount({ plugin: 'context-viewer', surface, ...BAND })
-    expect(await ui.find({ type: 'Text', text: whole(`${HEADER} • spend 42% (5d0h)`) })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: whole(`${HEADER} • spend 42% (5d0h) • ${SYNCED}`) })).toBeDefined()
     await ui.unmount()
   }
 })
@@ -251,7 +269,7 @@ test('nothing is added without limits or cost', async ($, on) => {
 
   for (const surface of SURFACES) {
     const ui = await $.ui.mount({ plugin: 'context-viewer', surface, ...BAND })
-    expect(await ui.find({ type: 'Text', text: whole(HEADER) })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: whole(`${HEADER} • ${SYNCED}`) })).toBeDefined()
     await ui.unmount()
   }
 })
@@ -262,7 +280,7 @@ test('usage limits shows the windows only', { options: { usage: 'limits' } }, as
 
   for (const surface of SURFACES) {
     const ui = await $.ui.mount({ plugin: 'context-viewer', surface, ...BAND })
-    expect(await ui.find({ type: 'Text', text: whole(`${HEADER} • 5h 24% (2h10m) • 7d 41% (3d4h)`) })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: whole(`${HEADER} • 5h 24% (2h10m) • 7d 41% (3d4h) • ${SYNCED}`) })).toBeDefined()
     await ui.unmount()
   }
 })
@@ -273,7 +291,7 @@ test('usage cost shows the spend only', { options: { usage: 'cost' } }, async ($
 
   for (const surface of SURFACES) {
     const ui = await $.ui.mount({ plugin: 'context-viewer', surface, ...BAND })
-    expect(await ui.find({ type: 'Text', text: whole(`${HEADER} • spent $1.23`) })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: whole(`${HEADER} • spent $1.23 • ${SYNCED}`) })).toBeDefined()
     await ui.unmount()
   }
 })
@@ -284,7 +302,7 @@ test('usage off shows neither', { options: { usage: 'off' } }, async ($, on) => 
 
   for (const surface of SURFACES) {
     const ui = await $.ui.mount({ plugin: 'context-viewer', surface, ...BAND })
-    expect(await ui.find({ type: 'Text', text: whole(HEADER) })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: whole(`${HEADER} • ${SYNCED}`) })).toBeDefined()
     await ui.unmount()
   }
 })
@@ -378,8 +396,7 @@ test('with one colour the desktop bar is one run plus the buffer', { options: { 
 })
 
 test('each measurement writes a snapshot for the VS Code status bar', async ($, on) => {
-  engine(on)
-  mock.env(on, { USERPROFILE: 'C:/Users/test' })
+  engine(on, { env: { USERPROFILE: 'C:/Users/test' } })
   on('session.id', () => ({ value: 'session-1' }))
   on('session.cwd', () => ({ value: 'D:/GIT/project' }))
   const writes: { path: string; text: string }[] = []
@@ -397,5 +414,31 @@ test('each measurement writes a snapshot for the VS Code status bar', async ($, 
   expect(snapshot).toMatchObject({ version: 1, sessionId: 'session-1', cwd: 'D:/GIT/project', updatedAt: NOW })
   expect(snapshot.view.tokens).toBe(90_000)
   expect(snapshot.view.limits).toHaveLength(2)
+  expect(snapshot.view.syncedAt).toBe(NOW)
   expect(snapshot.settings).toEqual({ legend: 'full', numbers: 'round', usage: 'both', separator: '•', showBuffer: true })
+})
+
+test('parseOffset reads date +%z and PowerShell zzz, and falls back to UTC', () => {
+  expect(parseOffset('+0100\n')).toBe(60)
+  expect(parseOffset('+01:00\r\n')).toBe(60)
+  expect(parseOffset('-05:30')).toBe(-330)
+  expect(parseOffset('')).toBe(0)
+})
+
+test('without process access the synced time is UTC', async ($, on) => {
+  engine(on, { canRun: false })
+  await measure($)
+
+  const ui = await $.ui.mount({ plugin: 'context-viewer', surface: 'terminal', ...BAND })
+  expect(await ui.find({ type: 'Text', text: /synced 12:00$/ })).toBeDefined()
+  await ui.unmount()
+})
+
+test('on Windows the offset comes from PowerShell, elsewhere from date', async ($, on) => {
+  engine(on, { env: { OS: 'Windows_NT' } })
+  await measure($)
+
+  const ui = await $.ui.mount({ plugin: 'context-viewer', surface: 'terminal', ...BAND })
+  expect(await ui.find({ type: 'Text', text: /synced 14:00$/ })).toBeDefined()
+  await ui.unmount()
 })

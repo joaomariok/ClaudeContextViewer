@@ -1,4 +1,4 @@
-import { barSvg, CLAUDE, fmt, pct, shownRows, usageParts } from '../../hooks/format'
+import { barSvg, CLAUDE, fmt, hhmm, pct, shownRows, usageParts } from '../../hooks/format'
 import type { Settings, Snapshot, View } from '../../hooks/format'
 
 const STALE_MS = 12 * 60 * 60 * 1000
@@ -79,6 +79,7 @@ export const tooltip = (v: View, s: Settings, now: number, logo?: string) => {
     `${mark} **${v.model}**`,
     `${dot(v.percent)} Context: **${fmt(v.tokens, precise)}** of ${fmt(v.window, precise)} (**${v.percent}%**)`,
     ...(v.compactAt === undefined ? [] : [`Compacts at: **${fmt(v.compactAt, precise)}**`]),
+    ...(v.syncedAt === undefined ? [] : [`Synced: **${hhmm(v.syncedAt)}**`]),
   ].join('  \n')
   const bar = `<img src="${svgData(barSvg(rows, v.window))}" width="320" height="8">`
 

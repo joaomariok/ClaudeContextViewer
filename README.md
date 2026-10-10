@@ -4,13 +4,13 @@ A Claude Code mod that draws the session's context window in the band above the 
 terminal and the desktop app:
 
 ```
-✻ claude-opus-5-5 • 90k of 1M (9%) • compacts at 987k • 5h 24% (2h10m) • 7d 41% (3d4h) • spent $1.23
+✻ claude-opus-5-5 • 90k of 1M (9%) • compacts at 987k • 5h 24% (2h10m) • 7d 41% (3d4h) • spent $1.23 • synced 14:32
 ██▓▓▓▓▓▓░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
 ■ system prompt 4.2k 0% • ■ system tools 17k 2% • ■ mcp tools 52k 5% • ■ free 897k 90%
 ```
 
 The bar and legend follow `/context`'s categories, each in its own colour. The band appears after the first
-response and refreshes whenever the context fill changes. Collapse it with `ctrl+x ctrl+a`.
+response and refreshes whenever the context fill changes; `synced` is the local time of the last refresh. Collapse it with `ctrl+x ctrl+a`.
 
 ## Settings
 

@@ -9,6 +9,7 @@ export type View = {
   rows: Row[]
   limits: { kind: string; percentUsed: number; resetsAt?: string }[]
   usd?: number
+  syncedAt?: number
 }
 
 declare module 'claude-code' {
