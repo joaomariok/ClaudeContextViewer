@@ -2,7 +2,7 @@
   "name": "context-viewer-status",
   "displayName": "Claude Context Viewer",
   "description": "Shows the Claude Code session's context window and plan usage in the status bar",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "joaomariok",
   "repository": "https://github.com/joaomariok/ClaudeContextViewer",
   "engines": { "vscode": "^1.90.0" },

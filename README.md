@@ -51,7 +51,7 @@ status-bar bar. To change the mark, see [extension/docs/regenerate-icon.md](exte
 cd extension
 npm install
 npm run package
-code --install-extension context-viewer-status-0.1.0.vsix
+code --install-extension context-viewer-status-0.1.1.vsix
 ```
 
 ## Develop

@@ -8,8 +8,8 @@ extra that keeps the figures in the status bar while the panel is closed.
 
 ```
 npm test                 # tsc, then node:test on out/extension/src/*.spec.js
-npm run package          # builds context-viewer-status-0.1.0.vsix
-code --install-extension context-viewer-status-0.1.0.vsix --force   # then Developer: Reload Window
+npm run package          # builds context-viewer-status-0.1.1.vsix
+code --install-extension context-viewer-status-0.1.1.vsix --force   # then Developer: Reload Window
 ```
 
 Also run the root gate (`../CLAUDE.md`) whenever `../hooks/format.ts` changes.

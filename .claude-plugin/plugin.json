@@ -1,6 +1,6 @@
 {
   "name": "context-viewer",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Shows the session's context window fill above the prompt",
   "author": { "name": "joaomariomag" },
   "types": "./types/index.d.ts",
