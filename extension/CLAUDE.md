@@ -1,7 +1,8 @@
 # context-viewer-status (VS Code extension)
 
 A status-bar item and hover showing the newest context-viewer snapshot for a session running in an open
-folder. The mod draws nothing in VS Code, so this extension is the only VS Code surface.
+folder. Claude Code's VS Code panel draws the mod's band itself (2.1.300+); this extension is an optional
+extra that keeps the figures in the status bar while the panel is closed.
 
 ## Verify
 

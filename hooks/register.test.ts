@@ -29,7 +29,7 @@ const row = (name: string, tokens: number, kind: 'used' | 'free' | 'buffer' | 'd
   kind,
 })
 
-const SURFACES = ['terminal', 'desktop'] as const
+const SURFACES = ['terminal', 'desktop', 'vscode'] as const
 
 // Stands in for the engine beneath the plugin: its own band, the usage breakdown, and one measurement.
 // `env` is the host's environment; `canRun: false` refuses every command, as outside the CLI.
@@ -332,18 +332,20 @@ test('header figures are not dimmed', async ($, on) => {
   }
 })
 
-test('the desktop draws the bar as an SVG, the terminal as text', async ($, on) => {
+test('the desktop and VS Code draw the bar as an SVG, the terminal as text', async ($, on) => {
   engine(on)
   await measure($)
 
-  const desktop = await $.ui.mount({ plugin: 'context-viewer', surface: 'desktop', ...BAND })
-  const svg = await desktop.find({ type: 'Svg' })
-  expect(svg).toBeDefined()
-  const source = String(svg?.props.source)
-  for (const color of ['#e5735a', '#4fa3e0', '#9b7fe6']) expect(source).toContain(`fill="${color}"`)
-  expect(svg?.props.alt).toContain('system prompt 4.2k')
-  expect(await desktop.find({ type: 'Text', text: /░/ })).toBeUndefined()
-  await desktop.unmount()
+  for (const surface of ['desktop', 'vscode'] as const) {
+    const remote = await $.ui.mount({ plugin: 'context-viewer', surface, ...BAND })
+    const svg = await remote.find({ type: 'Svg' })
+    expect(svg).toBeDefined()
+    const source = String(svg?.props.source)
+    for (const color of ['#e5735a', '#4fa3e0', '#9b7fe6']) expect(source).toContain(`fill="${color}"`)
+    expect(svg?.props.alt).toContain('system prompt 4.2k')
+    expect(await remote.find({ type: 'Text', text: /░/ })).toBeUndefined()
+    await remote.unmount()
+  }
 
   const terminal = await $.ui.mount({ plugin: 'context-viewer', surface: 'terminal', ...BAND })
   expect(await terminal.find({ type: 'Svg' })).toBeUndefined()
@@ -351,7 +353,7 @@ test('the desktop draws the bar as an SVG, the terminal as text', async ($, on) 
   await terminal.unmount()
 })
 
-test('the terminal sets the band off with a rule, the desktop does not', async ($, on) => {
+test('the terminal sets the band off with a rule, the desktop and VS Code do not', async ($, on) => {
   engine(on)
   await measure($)
 
@@ -359,9 +361,11 @@ test('the terminal sets the band off with a rule, the desktop does not', async (
   expect(await terminal.find({ type: 'Text', text: whole('─'.repeat(80)) })).toMatchObject({ props: { dimColor: true } })
   await terminal.unmount()
 
-  const desktop = await $.ui.mount({ plugin: 'context-viewer', surface: 'desktop', ...BAND })
-  expect(await desktop.find({ type: 'Text', text: /^─+$/ })).toBeUndefined()
-  await desktop.unmount()
+  for (const surface of ['desktop', 'vscode'] as const) {
+    const remote = await $.ui.mount({ plugin: 'context-viewer', surface, ...BAND })
+    expect(await remote.find({ type: 'Text', text: /^─+$/ })).toBeUndefined()
+    await remote.unmount()
+  }
 })
 
 test('the desktop bar has no seams between segments', async ($, on) => {

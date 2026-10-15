@@ -1,7 +1,7 @@
 # context-viewer
 
 A Claude Code mod that draws the session's context window in the band above the prompt, in the
-terminal and the desktop app:
+terminal, the desktop app and VS Code (extension 2.1.300 or later):
 
 ```
 ✻ claude-opus-5-5 • 90k of 1M (9%) • compacts at 987k • 5h 24% (2h10m) • 7d 41% (3d4h) • spent $1.23 • synced 14:32
@@ -38,9 +38,9 @@ block of `~/.claude/settings.json` (or pass `claude --plugin-dir <folder>` in a 
 
 ## VS Code status bar
 
-The Claude Code VS Code extension doesn't draw mod UI, so the band can't appear there. The mod still runs in
-VS Code sessions and writes its figures to `~/.claude/context-viewer/<session>.json`. A small companion
-extension in `extension/` shows the context in the status bar (the Claude mark, then `• ▰▱▱▱▱▱▱▱▱▱ • 87k/1M (9%)`).
+Optional. The band shows in Claude Code's VS Code panel; the mod also writes its figures to
+`~/.claude/context-viewer/<session>.json`, so a small companion extension in `extension/` can keep them
+in the status bar while the panel is closed (or on a Claude Code extension older than 2.1.300): the Claude mark, then `• ▰▱▱▱▱▱▱▱▱▱ • 87k/1M (9%)`.
 Its tooltip is
 laid out like Claude Code's Context usage dialog (the bar, then category, tokens and usage) and follows the
 mod's settings. It shows the newest session running in one of the open folders. VS Code's settings

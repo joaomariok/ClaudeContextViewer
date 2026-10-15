@@ -48,7 +48,7 @@ export const register: Register = (on, options) => {
       }
       await update($, view, () => fresh)
 
-      // For the VS Code status bar (extension/): VS Code draws no mod UI, but these hooks still run there.
+      // For the VS Code status bar (extension/), which shows the figures even with the chat panel closed.
       // ponytail: one file per session and none are deleted ($.fs has no delete); the extension skips stale ones.
       const home = (await $.env.get('USERPROFILE')) ?? (await $.env.get('HOME'))
       if (home !== undefined) {
@@ -97,9 +97,9 @@ export const register: Register = (on, options) => {
     })()
     const synced = v.syncedAt === undefined ? undefined : hhmm(v.syncedAt, await offset)
 
-    // The desktop draws in a proportional font, where a bar of cells misjudges its width and wraps; draw it as a vector.
+    // The desktop and VS Code draw in a proportional font, where a bar of cells misjudges its width and wraps; draw it as a vector.
     let bar = undefined
-    if (e.surface === 'desktop') {
+    if (e.surface !== 'terminal') {
       const { Svg } = $.ui.resolve(e)
       bar = (
         <Svg
@@ -112,7 +112,7 @@ export const register: Register = (on, options) => {
 
     return (
       <Box flexDirection="column">
-        {/* A rule like the prompt box's, so the band doesn't run into the transcript; the desktop frames the band itself. */}
+        {/* A rule like the prompt box's, so the band doesn't run into the transcript; the desktop and VS Code frame the band themselves. */}
         {e.surface === 'terminal' && <Text dimColor>{'─'.repeat(width)}</Text>}
         <Text>
           {/* Claude Code's own spinner starburst, in Claude's orange. */}

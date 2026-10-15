@@ -14,7 +14,7 @@ All three pass before work counts as done (plus `cd extension && npm test` when 
 
 ## Surfaces
 
-The band draws in the terminal and the desktop app only. The VS Code extension (2.1.294) draws no mod UI at all (anthropics/claude-code#99045), so keep the mod's drawing to `terminal` and `desktop`; VS Code gets its figures through the snapshot file and `extension/` (below).
+The band draws in the terminal, the desktop app and VS Code: the VS Code extension draws the `AbovePrompt` band since 2.1.300 (2.1.294 drew no mod UI, anthropics/claude-code#99045). `desktop` and `vscode` are remote surfaces with a proportional font, so both get the SVG bar and no rule; tests cover all three. The `extension/` status bar stays as an optional extra fed by the snapshot file (below).
 
 ## Gotchas
 
